@@ -22,15 +22,20 @@ const initialLoad = ref(true)
  * @param {number} count - Number of users to load.
  */
 const loadUsers = async (count = 10) => {
+  if (loading.value) return
   loading.value = true
-  const data = await fetchUsers(page.value, count)
-  users.value.push(...data.results)
-  page.value++
-  loading.value = false
-
-  if (initialLoad.value) {
-    checkIfMoreUsersNeeded()
-    initialLoad.value = false
+  try {
+    const data = await fetchUsers(page.value, count)
+    users.value.push(...data.results)
+    page.value++
+  } catch (error) {
+    console.error('Error fetching users:', error)
+  } finally {
+    loading.value = false
+    if (initialLoad.value) {
+      checkIfMoreUsersNeeded()
+      initialLoad.value = false
+    }
   }
 }
 
@@ -60,13 +65,28 @@ const checkIfMoreUsersNeeded = () => {
   })
 }
 
+/**
+ * Debounced scroll handler to limit the number of loadUsers calls.
+ */
+const debounce = (func, wait) => {
+  let timeout
+  return function (...args) {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => func.apply(this, args), wait)
+  }
+}
+/**
+ * Debounced version of handle scroll method.
+ */
+const debouncedHandleScroll = debounce(handleScroll, 200)
+
 onMounted(async () => {
   await loadUsers(10)
-  window.addEventListener('scroll', handleScroll)
+  window.addEventListener('scroll', debouncedHandleScroll)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('scroll', debouncedHandleScroll)
 })
 </script>
 
